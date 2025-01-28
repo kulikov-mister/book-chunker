@@ -1,6 +1,11 @@
 # handlers/user_handlers.py
-import asyncio, os, ebooklib, html2text
+import asyncio
+import os
+import html2text
+import ebooklib
+
 from ebooklib import epub
+
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -10,12 +15,11 @@ from aiogram.fsm.state import State, StatesGroup
 
 from loader import bot, dp
 from filters.filters import IsDelBookmarkCallbackData, IsDigitCallbackData
-from keyboards.bookmarks_kb import (create_bookmarks_keyboard,create_edit_keyboard)
+from keyboards.bookmarks_kb import (
+    create_bookmarks_keyboard, create_edit_keyboard)
 from keyboards.pagination_kb import create_pagination_keyboard
 from lexicon.lexicon import LEXICON
 from services.file_handling import prepare_book, cache_manager
-
-
 
 
 router = Router()
@@ -41,14 +45,12 @@ async def process_start_command(message: Message):
     await message.answer(LEXICON['start'])
 
 
-
 # хендлер на добавление книги
 @router.message(Command('add_book'))
 async def process_add_book_command(message: Message, state: FSMContext):
     user_id = message.from_user.id
     await state.set_state(UserStates.add_book)
     await message.answer(LEXICON['add_book'])
-
 
 
 # хендлер на добавление книги
@@ -78,7 +80,8 @@ async def process_add_book_save(message: Message, state: FSMContext):
 
             for item in book.get_items():
                 if item.get_type() == ebooklib.ITEM_DOCUMENT:
-                    text += html2text.html2text(item.get_body_content().decode('utf-8'))
+                    text += html2text.html2text(
+                        item.get_body_content().decode('utf-8'))
 
             # Сохраняем преобразованный текст в .txt файл
             txt_file_path = file_path.replace('.epub', '.txt')
@@ -94,8 +97,6 @@ async def process_add_book_save(message: Message, state: FSMContext):
         await message.answer(LEXICON['add_book_false'])
 
     await state.clear()
-
-        
 
 
 # Этот хэндлер будет срабатывать на команду "/help"
@@ -113,7 +114,7 @@ async def process_beginning_command(message: Message):
     if not await prepare_book(user_id):
         await message.answer("Извините, книга не найдена.")
         return
-    
+
     await cache_manager.update_user_page(user_id, 1)
     user_data = await cache_manager.get_user_data(user_id)
     book_key = f'book_{user_id}'
@@ -127,9 +128,9 @@ async def process_beginning_command(message: Message):
             'backward',
             f'{user_data["page"]}/{total_pages}',
             'forward'
-        )
+        ),
+        disable_web_page_preview=True
     )
-
 
 
 # Этот хэндлер будет срабатывать на команду "/continue"
@@ -151,12 +152,10 @@ async def process_continue_command(message: Message):
                 'backward',
                 f"{user_data['page']}/{total_pages}",
                 'forward'
-            )
+            ), disable_web_page_preview=True
         )
     else:
         await message.answer("Страница не найдена или книга не загружена.")
-
-
 
 
 # Этот хэндлер будет срабатывать на команду "/bookmarks"
@@ -172,13 +171,13 @@ async def process_bookmarks_command(message: Message):
     if user_data and user_data.get('bookmarks'):
         bookmarks = user_data['bookmarks']
         await message.answer(
-            text=LEXICON['bookmarks'],  # Предполагается, что в LEXICON есть ключ 'bookmarks'
-            reply_markup=create_bookmarks_keyboard(book_data, bookmarks)
+            # Предполагается, что в LEXICON есть ключ 'bookmarks'
+            text=LEXICON['bookmarks'],
+            reply_markup=create_bookmarks_keyboard(book_data, bookmarks),
+            disable_web_page_preview=True
         )
     else:
         await message.answer(text=LEXICON['no_bookmarks'])
-
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки "вперед"
@@ -202,10 +201,10 @@ async def process_forward_press(callback: CallbackQuery):
                 'backward',
                 f"{user_data['page']}/{total_pages}",
                 'forward'
-            )
+            ),
+            disable_web_page_preview=True
         )
     await callback.answer()
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки "назад"
@@ -229,7 +228,8 @@ async def process_backward_press(callback: CallbackQuery):
                 'backward',
                 f"{user_data['page']}/{total_pages}",
                 'forward'
-            )
+            ),
+            disable_web_page_preview=True
         )
     await callback.answer()
 
@@ -241,9 +241,8 @@ async def process_page_press(callback: CallbackQuery):
     user_id = callback.from_user.id
     page = callback.data.split('/')[0]
 
-    await cache_manager.add_user_bookmark(user_id, page)    
+    await cache_manager.add_user_bookmark(user_id, page)
     await callback.answer('Страница добавлена в закладки!')
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки
@@ -267,11 +266,11 @@ async def process_bookmark_press(callback: CallbackQuery):
                 'backward',
                 f"{page}/{total_pages}",
                 'forward'
-            )
+            ),
+            disable_web_page_preview=True
         )
     else:
         await callback.answer('Страница не найдена.')
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки
@@ -282,19 +281,19 @@ async def process_edit_press(callback: CallbackQuery):
     user_data = await cache_manager.get_user_data(user_id)
     book_key = f'book_{user_id}'
     book_data = await cache_manager.get(book_key)
-    
+
     if user_data and user_data.get('bookmarks'):
         await callback.message.edit_text(
             text=LEXICON['edit_bookmarks'],
             reply_markup=create_edit_keyboard(
                 book_data,
                 user_data['bookmarks']
-            )
+            ),
+            disable_web_page_preview=True
         )
     else:
         await callback.message.edit_text(text=LEXICON['no_bookmarks'])
     await callback.answer()
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки
@@ -303,7 +302,6 @@ async def process_edit_press(callback: CallbackQuery):
 async def process_cancel_press(callback: CallbackQuery):
     await callback.message.edit_text(text=LEXICON['cancel_text'])
     await callback.answer()
-
 
 
 # Этот хэндлер будет срабатывать на нажатие инлайн-кнопки
@@ -335,5 +333,3 @@ async def process_del_bookmark_press(callback: CallbackQuery):
         # Если закладок нет, отправляем сообщение об этом
         await callback.message.edit_text(text=LEXICON['no_bookmarks'])
         await callback.answer('Закладки удалены.')
-
-
